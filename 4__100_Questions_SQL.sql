@@ -601,15 +601,149 @@ GROUP BY B.TITLE;
 ---------------------------------------------------------------------------------------------------------
 
 -- 41. List all members who borrowed books in the 'Fantasy' genre.
+SELECT M.NAME,M.MEMBERID
+FROM MEMBERS M
+LEFT JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+LEFT JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+WHERE B.GENRE ="FANTASY"
+ORDER BY M.MEMBERID;
+
+----------------------------------------------------------------------------------------------------------------
 -- 42. Display all borrowings with member name, book title, and staff name handling it (complex JOIN).
+CREATE TABLE BORROWINGS_HANDLED (
+    BORROWID INT,
+    STAFFID INT,
+    FOREIGN KEY (BORROWID) REFERENCES BORROWINGS (BORROWID),
+    FOREIGN KEY (STAFFID) REFERENCES STAFF (STAFFID)
+);
+-- Sample data: BorrowID from BORROWINGS and StaffID from STAFF
+INSERT INTO
+    BORROWINGS_HANDLED (BORROWID, STAFFID)
+VALUES (1, 1),
+    (2, 1),
+    (3, 2),
+    (4, 3),
+    (5, 1),
+    (6, 2),
+    (7, 3),
+    (8, 2),
+    (9, 1),
+    (10, 3);
+SELECT BO.BORROWID AS BORROWID,M.NAME AS MEMBER_NAME,
+B.TITLE AS BOOK_TITLE ,S.NAME AS STAFF_NAME,S.ROLE AS STAFF_ROLE
+FROM BORROWINGS BO
+LEFT JOIN MEMBERS M ON M.MEMBERID=BO.MEMBERID
+LEFT JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+LEFT JOIN borrowings_handled BH ON BH.BORROWID=BO.BORROWID
+LEFT JOIN STAFF S ON S.STAFFID=BH.STAFFID
+ORDER BY BO.BORROWDATE DESC;
+
+-------------------------------------------------------------------------------------------------
+
 -- 43. List members who borrowed books published before 2010.
+
+SELECT M.MEMBERID AS MEMBERID,M.NAME AS MEMBER_NAME,
+BO.BORROWID AS BORROW_ID,
+B.TITLE AS BOOK_NAME
+FROM MEMBERS M
+LEFT JOIN BORROWINGS BO ON BO.MEMBERID = M.MEMBERID
+LEFT JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+WHERE BO.BORROWDATE<"2011-01-01";
+
+----------------------------------------------------------------------------------------
 -- 44. Find members who borrowed books in multiple genres.
+-- USE HAVING CLAUSE WITH COUNT,SUM,AVG,ETC. AND NORMAL ->GROUP BY
+SELECT M.MEMBERID AS MEMBER_ID ,
+M.NAME AS MEMBER_NAME,
+COUNT(B.GENRE) AS NUMBER_OF_GENERS
+FROM BOOKS B
+RIGHT JOIN BORROWINGS BO ON BO.BOOKID =B.BOOKID
+RIGHT JOIN MEMBERS M ON M.MEMBERID=BO.MEMBERID
+GROUP BY MEMBER_ID,MEMBER_NAME
+HAVING COUNT(DISTINCT B.GENRE)>1;
+
+-------------------------------------------------------------------------------------------------
 -- 45. Show books borrowed along with member names who borrowed more than once.
+
+SELECT
+    M.MEMBERID,
+    M.NAME AS MemberName,
+    B.BOOKID,
+    B.TITLE AS BookTitle,
+    COUNT(BO.BORROWID) AS NumberOfTimesBorrowed
+FROM
+    BORROWINGS BO
+    JOIN MEMBERS M ON M.MEMBERID = BO.MEMBERID
+    JOIN BOOKS B ON B.BOOKID = BO.BOOKID
+GROUP BY
+    M.MEMBERID,
+    M.NAME,
+    B.BOOKID,
+    B.TITLE
+HAVING
+    COUNT(BO.BORROWID) > 1;
+
+----------------------------------------------------------------------------------------------------
 -- 46. Display books with average member age who borrowed them.
+SELECT B.TITLE AS BOOK_TITLE,
+       AVG(M.AGE) AS MEMBER_AVG_AVG
+FROM BORROWINGS BO
+LEFT JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+LEFT JOIN MEMBERS M ON M.MEMBERID =BO.MEMBERID
+GROUP BY B.TITLE;
+
+------------------------------------------------------------------------------------------------------
 -- 47. List staff who joined before 2020 and members who borrowed books under their supervision.
+-- 47. List staff who joined before 2020 and members who borrowed books under their supervision
+SELECT
+    S.NAME AS StaffName,
+    M.NAME AS MemberName,
+    BO.BORROWDATE AS DateOfBorrow
+FROM
+    STAFF S
+    JOIN BORROWINGS_HANDLED BH ON BH.STAFFID = S.STAFFID
+    JOIN BORROWINGS BO ON BO.BORROWID = BH.BORROWID
+    JOIN MEMBERS M ON M.MEMBERID = BO.MEMBERID
+WHERE
+    S.HIREDATE < '2020-01-01'
+ORDER BY S.NAME, BO.BORROWDATE;
+
+--------------------------------------------------------------------------------------------------
+
 -- 48. Display all borrowings where books are from a certain author, along with member names.
+SELECT DISTINCT B.TITLE AS BOOK_TITLE,
+B.AUTHOR AS BOOK_AUTHOR,
+ M.NAME AS MEMBER_NAME
+FROM BOOKS B
+RIGHT JOIN BORROWINGS BO ON BO.BOOKID=B.BOOKID
+LEFT JOIN MEMBERS M ON M.MEMBERID=BO.MEMBERID
+WHERE B.AUTHOR="BJARRNE STROUSTRUP"
+ORDER BY MEMBER_NAME DESC;
+
+---------------------------------------------------------------------------------------------------------------
 -- 49. Find members who borrowed all books of a particular genre.
+SELECT M.NAME AS MEMBER_NAME,
+B.TITLE AS BOOK_TITLE
+FROM MEMBERS M
+LEFT JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+LEFT JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+WHERE GENRE="PROGRAMMING"
+ORDER BY MEMBER_NAME DESC;
+
+------------------------------------------------------------------------------------------------------------------------
+
 -- 50. List top 3 members with most borrowings.
+--INNER JOINS ENSURES BEING MIN COUNT 1 (NOT 0)
+SELECT M.NAME AS MEMBER_NAME,
+M.MEMBERID AS MEMBER_ID,
+COUNT(BO.MEMBERID) AS TOTAL_BORROWINGS
+FROM MEMBERS M
+INNER JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+GROUP BY MEMBER_ID
+ORDER BY TOTAL_BORROWINGS DESC
+LIMIT 3;
+
+----------------------------------------------------------------------------------------------------------
 
 -- ---
 
