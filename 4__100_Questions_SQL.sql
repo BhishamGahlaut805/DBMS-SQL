@@ -1130,32 +1130,389 @@ WHERE
 
     ----------------------------------------------------------------------------------------------------
 -- 76. Display members who borrowed books but no member borrowed 'Fantasy' books (EXCEPT).
--- 77. Find members who borrowed at least 2 books in the same genre.
--- 78. List books borrowed by members who borrowed books authored by 'J.K. Rowling'.
--- 79. Find members who borrowed books with more than 1 copy available.
--- 80. Find members who borrowed books but not authored by 'Stephen King'.
--- 81. List members who borrowed books published in 2020 but not 2021.
--- 82. Find members who borrowed all books authored by 'George Orwell'.
--- 83. List top 5 books by the number of borrowings.
--- 84. Display members and books where member borrowed the highest-rated book (if ratings added).
--- 85. Find members who borrowed books of every genre available.
+SELECT M.MEMBERID,
+M.NAME,B.TITLE
+FROM MEMBERS M
+LEFT JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+LEFT JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+WHERE B.GENRE<>'FANTASY';
 
+----------------------------------------------------------------------------------------------------------
+-- 77. Find members who borrowed at least 2 books in the same genre.
+SELECT M.MEMBERID AS MEMBERID,
+M.NAME AS MEMBER_NAME,
+B.GENRE,
+COUNT(B.BOOKID)
+FROM MEMBERS M
+JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+GROUP BY M.MEMBERID,M.NAME,B.GENRE
+HAVING COUNT(B.BOOKID)>1;
+-----------------------------------------------------------------------------------------------------
+-- 78. List books borrowed by members who borrowed books authored by 'J.K. Rowling'.
+SELECT M.NAME,M.MEMBERID,
+B.TITLE,B.AUTHOR
+FROM BOOKS B
+JOIN BORROWINGS BO ON BO.BOOKID=B.BOOKID
+JOIN MEMBERS M ON M.MEMBERID=BO.MEMBERID
+WHERE M.MEMBERID IN(
+    SELECT M1.MEMBERID
+    FROM MEMBERS M1
+    JOIN BORROWINGS BO1 ON BO1.MEMBERID=M1.MEMBERID
+    JOIN BOOKS B1 ON B1.BOOKID=BO1.BOOKID
+    WHERE B1.AUTHOR ='Abraham Silberschatz'
+)
+-- EXCLUDE THOSE OF COMPARING ONE
+AND B.AUTHOR<>'Abraham Silberschatz'
+ORDER BY M.MEMBERID;
+
+-------------------------------------------------------------------------------------------------
+-- 79. Find members who borrowed books with more than 1 copy available.
+SELECT M.MEMBERID,M.NAME,
+B.COPIESAVAILABLE,
+BO.BORROWDATE,
+BO.BORROWID
+FROM MEMBERS M
+JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+WHERE B.COPIESAVAILABLE>1
+ORDER BY B.COPIESAVAILABLE;
+
+---------------------------------------------------------------------------------------------------------------
+-- 80. Find members who borrowed books but not authored by 'Stephen King'.
+SELECT DISTINCT M.MEMBERID, M.NAME, B.TITLE,B.AUTHOR
+FROM
+    MEMBERS M
+    LEFT JOIN BORROWINGS BO ON BO.MEMBERID = M.MEMBERID
+    LEFT JOIN BOOKS B ON B.BOOKID = BO.BOOKID
+where B.AUTHOR<>'STEPHEN KING'
+ORDER BY M.MEMBERID;
+
+---------------------------------------------------------------------------------------------------------
+
+-- 81. List members who borrowed books published in 2020 but not 2021.
+SELECT M.MEMBERID, M.NAME, B.TITLE, B.PUBLISHEDYEAR
+FROM MEMBERS M
+JOIN BORROWINGS BO ON BO.MEMBERID = M.MEMBERID
+JOIN BOOKS B ON B.BOOKID = BO.BOOKID
+WHERE B.PUBLISHEDYEAR = 2020
+AND M.MEMBERID NOT IN (
+    SELECT M1.MEMBERID
+    FROM MEMBERS M1
+    JOIN BORROWINGS BO1 ON BO1.MEMBERID = M1.MEMBERID
+    JOIN BOOKS B1 ON B1.BOOKID = BO1.BOOKID
+    WHERE B1.PUBLISHEDYEAR = 2021
+)
+ORDER BY M.MEMBERID;
+--------------------------------------------------------------------------------------------------------------
+
+-- 82. Find members who borrowed all books authored by 'George Orwell'.
+SELECT M.MEMBERID,
+M.NAME
+FROM MEMBERS M
+LEFT JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+LEFT JOIN BOOKS B ON B.BOOKID =BO.BOOKID
+WHERE B.AUTHOR="GEORGE ORWELL"
+GROUP BY M.MEMBERID,M.NAME
+HAVING COUNT(DISTINCT BO.BORROWID)=(
+    SELECT COUNT(*)
+    FROM BOOKS B2
+    WHERE B2.AUTHOR="GEORGE ORWELL"
+);
+
+----------------------------------------------------------------------------------------------------------
+-- 83. List top 5 books by the number of borrowings.
+SELECT B.BOOKID AS BOOKID,
+B.TITLE AS BOOK_TITLE,
+COUNT(BO.BORROWID) AS NUMBER_OF_BORROWINGS
+FROM BOOKS B
+LEFT JOIN BORROWINGS BO ON BO.BOOKID=B.BOOKID
+GROUP BY B.BOOKID,B.TITLE
+ORDER BY NUMBER_OF_BORROWINGS DESC
+LIMIT 5;
+
+-------------------------------------------------------------------------------------------------
+-- 84. Display members and books where member borrowed the highest-rated book (if ratings added).
+ALTER TABLE BOOKS ADD RATING FLOAT;
+UPDATE BOOKS
+SET RATING=4.5
+WHERE BOOKID BETWEEN 1 AND 12;
+UPDATE BOOKS
+SET RATING=4.0
+WHERE BOOKID BETWEEN 13 AND 24;
+UPDATE BOOKS
+SET RATING=3.5
+WHERE BOOKID BETWEEN 25 AND 36;
+UPDATE BOOKS
+SET RATING=3.0
+WHERE BOOKID BETWEEN 37 AND 48;
+UPDATE BOOKS
+SET RATING=5.0
+WHERE BOOKID BETWEEN 49 AND 60;
+
+SELECT M.MEMBERID AS MEMBERID,
+M.NAME AS MEMBER_NAME,
+B.TITLE AS BOOK_TITLE,
+B.RATING AS BOOK_RATING
+FROM MEMBERS M
+LEFT JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+LEFT JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+WHERE B.RATING=(
+    SELECT MAX(RATING)
+    FROM BOOKS
+)
+ORDER BY M.MEMBERID;
+
+-------------------------------------------------------------------------------------------------
+-- 85. Find members who borrowed books of every genre available.
+SELECT M.MEMBERID AS MEMBERID,
+M.NAME AS MEMBER_NAME
+FROM MEMBERS M
+JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+GROUP BY M.MEMBERID,M.NAME
+HAVING COUNT(DISTINCT B.GENRE)=(
+    SELECT COUNT(DISTINCT GENRE)
+    FROM BOOKS
+)
+ORDER BY M.MEMBERID;
+
+-------------------------------------------------------------------------------------------------
 -- ---
 
 -- ### *Section 6: Competitive / Placement / GATE Style Questions (15 Questions)*
 
 -- 86. Find the second highest salary among staff.
+SELECT MAX(SALARY) AS SECOND_HIGHEST_SALARY
+FROM STAFF
+WHERE SALARY<(
+    SELECT MAX(SALARY)
+    FROM STAFF
+);
+
+-------------------------------------------------------------------------------------------------
 -- 87. Find the second most borrowed book.
+SELECT B.BOOKID AS BOOKID,
+B.TITLE AS BOOK_TITLE,
+COUNT(BO.BORROWID) AS NUMBER_OF_BORROWINGS
+FROM BOOKS B
+LEFT JOIN BORROWINGS BO ON BO.BOOKID=B.BOOKID
+GROUP BY B.BOOKID,B.TITLE
+HAVING COUNT(BO.BORROWID)=(
+    SELECT BORROW_COUNT FROM(
+        SELECT COUNT(BO1.BORROWID) AS BORROW_COUNT
+        FROM BORROWINGS BO1
+        GROUP BY BO1.BOOKID
+        ORDER BY BORROW_COUNT DESC
+        LIMIT 1 OFFSET 1
+    ) AS T
+);
+
+-------------------------------------------------------------------------------------------------
 -- 88. Find members who borrowed more books than 'M102'.
+SELECT M.MEMBERID AS MEMBER_ID,
+M.NAME AS MEMBER_NAME,
+COUNT(BO.BORROWID) AS BOOKS_BORROWED
+FROM MEMBERS M
+JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+GROUP BY M.MEMBERID,M.NAME
+HAVING COUNT(DISTINCT BO.BORROWID)>(
+    SELECT COUNT(BO1.BORROWID)
+    FROM BORROWINGS BO1
+    WHERE BO1.MEMBERID='M102'
+);
+--------------------------------------------------------------------------------------------------------
+
 -- 89. Find members who borrowed the least number of books.
+SELECT M.MEMBERID AS MEMBERID,
+M.NAME AS MEMBER_NAME,
+COUNT(BO.BORROWID) AS NUMBER_OF_BOOKS_BORROWED
+FROM MEMBERS M
+LEFT JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+GROUP BY M.MEMBERID,M.NAME
+HAVING COUNT(BO.BORROWID)=(
+    SELECT MIN(BORROW_COUNT)
+    FROM(
+        SELECT COUNT(BO1.BORROWID) AS BORROW_COUNT
+        FROM BORROWINGS BO1
+        GROUP BY BO1.MEMBERID
+    ) AS T
+);
+-------------------------------------------------------------------------------------------------
 -- 90. Display members who borrowed books in all genres with at least one copy.
+SELECT M.MEMBERID AS MEMBERID,
+M.NAME AS MEMBERNAME
+FROM MEMBERS M
+ JOIN BORROWINGS BO ON BO.MEMBERID = M.MEMBERID
+ JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+GROUP BY M.MEMBERID,M.NAME
+HAVING COUNT(DISTINCT B.GENRE)=(
+    SELECT COUNT(GENRE)
+    FROM BOOKS
+);
+
+----------------------------------------------------------------------------------------------------------
 -- 91. Find members who borrowed books in the same genre as 'M101'.
+SELECT M.MEMBERID,
+M.NAME AS MEMBER_NAME
+FROM MEMBERS M
+JOIN BORROWINGS BO ON BO.MEMBERID = M.MEMBERID
+JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+WHERE B.GENRE IN (
+    SELECT B1.GENRE
+    FROM BOOKS B1
+    JOIN BORROWINGS BO1 ON BO1.BOOKID=B1.BOOKID
+    WHERE BO1.MEMBERID='M101'
+)AND M.MEMBERID<>'M101'
+GROUP BY M.MEMBERID,M.NAME;
+
+----------------------------------------------------------------------------------------------------------------
+
 -- 92. List books borrowed in all months of a year.
+SELECT B.BOOKID,
+B.TITLE
+FROM BOOKS B
+JOIN BORROWINGS BO ON BO.BOOKID=B.BOOKID
+WHERE YEAR(BO.BORROWDATE)=2025
+GROUP BY B.BOOKID,B.TITLE
+HAVING COUNT(DISTINCT MONTH(BO.BORROWDATE))=12;
+
+-------------------------------------------------------------------------------------------------
 -- 93. Find members who borrowed books, all published after 2010.
+SELECT M.MEMBERID AS MEMBERID,
+M.NAME AS MEMBER_NAME,
+B.PUBLISHEDYEAR
+FROM MEMBERS M
+JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+WHERE B.PUBLISHEDYEAR>2010
+GROUP BY M.MEMBERID,M.NAME,B.PUBLISHEDYEAR
+ORDER BY B.PUBLISHEDYEAR;
+
+-------------------------------------------------------------------------------------------------
 -- 94. Display the average number of borrowings per member per year.
+SELECT M.MEMBERID AS MEMBERID,
+M.NAME AS MEMBER_NAME,
+AVG(YEARLY_BORROWED) AS AVERAGE_BORROWINGS_PER_YEAR
+FROM MEMBERS M
+JOIN (
+    SELECT MEMBERID,YEAR(BORROWDATE) AS YEAR,
+    COUNT(*) AS YEARLY_BORROWED
+    FROM BORROWINGS
+    GROUP BY MEMBERID,YEAR(BORROWDATE)
+) AS T
+ON M.MEMBERID=T.MEMBERID
+GROUP BY M.MEMBERID,M.NAME
+ORDER BY M.MEMBERID;
+
+--------------------------------------------------------------------------------------------------------------
+
 -- 95. Find members who borrowed more books than the median borrowings.
+SET @rownum := 0;
+SET @total := (SELECT COUNT(DISTINCT MEMBERID) FROM BORROWINGS);
+
+SELECT M.MEMBERID AS MEMBERID,
+       M.NAME AS MEMBER_NAME,
+       COUNT(BO.BORROWID) AS TOTAL_BORROWED
+FROM MEMBERS M
+JOIN BORROWINGS BO ON BO.MEMBERID = M.MEMBERID
+GROUP BY M.MEMBERID, M.NAME
+HAVING COUNT(BO.BORROWID) > (
+    SELECT AVG(middle_vals) AS MEDIAN_BORROWED FROM (
+        SELECT t.BORROWCOUNT AS middle_vals
+        FROM (
+            SELECT COUNT(BO1.BORROWID) AS BORROWCOUNT
+            FROM BORROWINGS BO1
+            GROUP BY BO1.MEMBERID
+            ORDER BY BORROWCOUNT
+        ) t,
+        (SELECT @rownum := @rownum + 1 AS rn FROM (SELECT 1 UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 UNION SELECT 9 UNION SELECT 10) x LIMIT 1000) r
+        WHERE r.rn BETWEEN FLOOR((@total + 1) / 2) AND CEIL((@total + 1) / 2)
+        LIMIT 2
+    ) AS median_table
+);
+-------------------------------------------------------------------------------------------------
+
+
 -- 96. Find members who borrowed books by authors with more than 5 books in library.
+SELECT M.MEMBERID AS MEMBERID,
+M.NAME AS MEMBER_NAME,
+B.AUTHOR,
+COUNT(B.BOOKID) AS BOOKS_BY_AUTHOR
+FROM MEMBERS M
+JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+GROUP BY M.MEMBERID,M.NAME,B.AUTHOR
+HAVING COUNT(B.BOOKID)>5;
+
+-------------------------------------------------------------------------------------------------
+
 -- 97. Display members who borrowed the first book added to library.
+ALTER TABLE BOOKS ADD ADDED_DATE DATE;
+UPDATE BOOKS
+SET ADDED_DATE = '2020-01-01'
+WHERE BOOKID BETWEEN 1 AND 12;
+
+UPDATE BOOKS
+SET ADDED_DATE = '2020-06-01'
+WHERE BOOKID BETWEEN 13 AND 24;
+
+UPDATE BOOKS
+SET ADDED_DATE = '2021-01-01'
+WHERE BOOKID BETWEEN 25 AND 36;
+UPDATE BOOKS
+SET ADDED_DATE = '2021-06-01'
+WHERE BOOKID BETWEEN 37 AND 48;
+UPDATE BOOKS
+SET ADDED_DATE = '2022-01-01'
+WHERE BOOKID BETWEEN 49 AND 60;
+
+
+SELECT M.MEMBERID AS MEMBERID,
+M.NAME AS MEMBER_NAME
+FROM MEMBERS M
+JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+JOIN BOOKS B ON B.BOOKID=BO.BOOKID
+WHERE B.ADDED_DATE = (SELECT MIN(ADDED_DATE) FROM BOOKS)
+ORDER BY M.MEMBERID;
+
+-------------------------------------------------------------------------------------------------
+
 -- 98. List books that were never borrowed in the last 2 years.
+SELECT B.BOOKID AS BOOKID,
+B.TITLE AS BOOK_TITLE
+FROM BOOKS B
+LEFT JOIN BORROWINGS BO ON BO.BOOKID=B.BOOKID AND BO.BORROWDATE >= DATE_SUB(CURDATE(), INTERVAL 2 YEAR)
+WHERE BO.BORROWID IS NULL;
+
+-------------------------------------------------------------------------------------------------
+
 -- 99. Find members who borrowed books but no staff assigned (if Staff tracking implemented).
+SELECT DISTINCT M.MEMBERID AS MEMBERID,
+M.NAME AS MEMBER_NAME
+FROM MEMBERS M
+JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+LEFT JOIN BORROWINGS_HANDLED BH ON BH.BORROWID=BO.BORROWID
+WHERE BH.STAFFID IS NULL
+ORDER BY M.MEMBERID;
+
+-------------------------------------------------------------------------------------------------
 -- 100. Display members who borrowed the same book as the top borrower.
+SELECT DISTINCT M.MEMBERID AS MEMBERID,
+M.NAME AS MEMBER_NAME
+FROM MEMBERS M
+JOIN BORROWINGS BO ON BO.MEMBERID=M.MEMBERID
+WHERE BO.BOOKID IN(
+    SELECT BO1.BOOKID
+    FROM BORROWINGS BO1
+    WHERE BO1.MEMBERID=(
+        SELECT BO2.MEMBERID
+        FROM BORROWINGS BO2
+        GROUP BY BO2.MEMBERID
+        ORDER BY COUNT(BO2.MEMBERID)DESC
+        LIMIT 1
+    )
+)
+ORDER BY M.MEMBERID;
+-------------------------------------------------------------------------------------------------
+--------------------------------------------------------------------------------------------------
